@@ -1,0 +1,103 @@
+          $mail=SendNotification::find($id);
+
+          $x_message_id="";
+          $data=array();
+          $to=$mail->to;
+          $html=$mail->body;
+          $subject=$mail->subject;
+          $source=$mail->source;
+          $headers=array(
+                  'Authorization: Bearer '.env('SENDGRID_API_KEY'),
+                  'Content-Type: application/json'
+            );
+           
+            if(count($file)>0)
+            {     
+                stream_context_set_default([
+                      'ssl' =>[
+                            'verify_peer' => false,
+                            'verify_peer_name' => false,
+                      ]
+                  ]);
+                  $size = sizeOf($file);
+
+                  for($i=0;$i<$size;$i++)
+                    { 
+                      $attachments[$i]=array(
+                                          "content" =>base64_encode(file_get_contents($file[$i])),
+                                          "filename" => $source.basename($file[$i])
+                                      );              
+                    }
+
+                    $data_set=array(
+                      "personalizations"=> array(
+                          array(
+                            "to" => array(
+                                  array(
+                                        "email" => $to
+                                    )
+                              )
+                            )
+                        ),
+                        "from" => array(
+                                "email" => env('EMAIL_FROM_ID'),
+                                "name"  =>  env('EMAIL_FROM_NAME')
+                          ),
+                        "subject" => $subject,
+                        "content" => array(
+
+                          array(
+                              "type" =>"text/html",
+                              "value" => $html
+                          )
+                        ),
+                        "reply_to" => array(
+                                  "email" => env('REPLY_TO_EMAIL')
+                          ),
+                        "attachments" => $attachments
+               );
+              
+            }
+            else
+            {
+                 $data_set=array(
+                      "personalizations"=> array(
+                          array(
+                            "to" => array(
+                                  array(
+                                        "email" => $to
+                                    )
+                              )
+                            )
+                        ),
+                        "from" => array(
+                                "email" => env('EMAIL_FROM_ID'),
+                                "name"  =>  env('EMAIL_FROM_NAME')
+                          ),
+                        "subject" => $subject,
+                        "content" => array(
+
+                          array(
+                              "type" =>"text/html",
+                              "value" => $html
+                          )
+                        ),
+                        "reply_to" => array(
+                                  "email" => env('REPLY_TO_EMAIL')
+                          )
+               );
+            }
+          
+           $ch=curl_init();
+           $curl_options = array(
+                              CURLOPT_URL => "https://api.sendgrid.com/v3/mail/send",
+                              CURLOPT_POST => true,
+                              CURLOPT_POSTFIELDS => json_encode($data_set), //<<<
+                              CURLOPT_RETURNTRANSFER => true,
+                              CURLOPT_HEADER => true,
+                              CURLOPT_HTTPHEADER => $headers
+                          );
+           
+            curl_setopt_array($ch, $curl_options);
+            $response =curl_exec($ch);
+            $err = curl_error($ch);
